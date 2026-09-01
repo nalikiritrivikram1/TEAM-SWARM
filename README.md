@@ -1,14 +1,45 @@
-# EIN — Edge Intelligence Network (v3)
-> Don't move the video. Move the understanding.
+# EIN — Edge Intelligence Network
 
-30 real Sentinel cameras. EasyOCR (works on any Python). Standalone backend (no Docker required).
+### Gujarat Police Innovation Challenge 2026 | Team: The Swarm
+
+EIN puts AI at the edge of each CCTV camera. Instead of streaming video to a central server, each edge node processes video locally and sends only metadata, reducing bandwidth by 99%+ compared to traditional VMS systems.
+
+## Features
+
+- Live camera streaming with AES-128 decryption
+- YOLOv8 vehicle detection (cars, buses, trucks, motorcycles)
+- EasyOCR number plate recognition (ANPR)
+- Palantir-style dark dashboard with live Gujarat map
+- 30 cameras across Gujarat
+- Real-time WebSocket updates
+- Watchlist matching and alerts
+- Vehicle trail correlation
 
 ## Quick Start
-```
-pip install -r requirements.txt
-cd backend && pip install -r requirements.txt && uvicorn server:app --port 8000 &
-cd ../dashboard && python -m http.server 8080 &
-CAMERA_ID=cam04 CAMERA_LABEL="Paldi Circle" HLS_URL="https://cctv.corp8.cloud/cam04/index.m3u8" MQTT_HOST=localhost python edge.py
+
+```bash
+pip install requests opencv-python pycryptodome fastapi uvicorn ultralytics easyocr
+
+# Terminal 1: Backend
+cd backend && python server.py
+
+# Terminal 2: Dashboard
+cd dashboard && python -m http.server 8080
+
+# Terminal 3: Edge AI
+python edge.py --cam cam01 --show
 ```
 
-Team: **The Swarm**
+## Live Dashboard
+
+https://nalikiritrivikram1.github.io/TEAM-SWARM/
+
+## GitHub
+
+https://github.com/nalikiritrivikram1/TEAM-SWARM
+
+## Team
+
+- Team: The Swarm
+- Member: Imran Khan
+- Hackathon: Gujarat Police Innovation Challenge 2026
