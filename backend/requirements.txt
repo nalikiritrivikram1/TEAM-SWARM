@@ -1,0 +1,7 @@
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+paho-mqtt>=1.6.1
+pydantic>=2.0.0
+# Optional (falls back to SQLite/dict if not installed):
+redis[hiredis]>=5.0.0
+asyncpg>=0.29.0

@@ -1,0 +1,38 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local databases and runtime files
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Generated detection output and test artifacts
+detections/*
+!detections/.gitkeep
+test_frame.jpg
+
+# Large local AI model artifacts
+*.pt
+*.onnx
+*.engine
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/

@@ -1,0 +1,3105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EIN — Edge Intelligence Network</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
+    />
+    <style>
+      :root {
+        --font-display: "Space Grotesk", system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+        --bg: #eef1f6;
+        --bg-grid: #eef1f6;
+        --surface: #ffffff;
+        --surface2: #f3f5f9;
+        --surface3: #e8ecf2;
+        --border: rgba(15, 23, 42, 0.09);
+        --border-bright: rgba(15, 23, 42, 0.16);
+        --border-active: rgba(20, 80, 158, 0.35);
+        --text: #1a2333;
+        --text-bright: #0b0f19;
+        --text-dim: #5b6472;
+        --text-faint: #707b8f;
+        --on-accent: #ffffff;
+        --accent: #14509e;
+        --accent-glow: rgba(20, 80, 158, 0.28);
+        --accent-dim: rgba(20, 80, 158, 0.08);
+        --green: #0a7d4b;
+        --green-glow: rgba(10, 125, 75, 0.28);
+        --green-dim: rgba(10, 125, 75, 0.08);
+        --amber: #b45309;
+        --amber-glow: rgba(180, 83, 9, 0.28);
+        --amber-dim: rgba(180, 83, 9, 0.08);
+        --red: #b91c1c;
+        --red-glow: rgba(185, 28, 28, 0.32);
+        --red-dim: rgba(185, 28, 28, 0.08);
+        --purple: #6d28d9;
+        --purple-dim: rgba(109, 40, 217, 0.08);
+        --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+        --shadow: 0 8px 28px rgba(15, 23, 42, 0.12);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-display);
+        font-size: 13px;
+        -webkit-font-smoothing: antialiased;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
+      }
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-bright);
+        border-radius: 2px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--text-dim);
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes slideInRight {
+        from {
+          opacity: 0;
+          transform: translateX(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+      @keyframes pulseRing {
+        0% {
+          transform: scale(0.5);
+          opacity: 0.8;
+        }
+        100% {
+          transform: scale(3);
+          opacity: 0;
+        }
+      }
+      @keyframes pulseGlow {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 var(--red-glow);
+          opacity: 1;
+        }
+        50% {
+          box-shadow: 0 0 0 6px transparent;
+          opacity: 0.7;
+        }
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.2;
+        }
+      }
+      @keyframes drawLine {
+        from {
+          stroke-dashoffset: 1000;
+        }
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+      @keyframes shimmer {
+        0% {
+          background-position: -200% 0;
+        }
+        100% {
+          background-position: 200% 0;
+        }
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      .app {
+        display: grid;
+        grid-template-rows: 48px 1fr;
+        height: 100vh;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* TOPBAR */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        position: relative;
+      }
+      .topbar__left {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .brand__logo {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .brand__logo svg {
+        width: 100%;
+        height: 100%;
+      }
+      .brand__name {
+        font-weight: 700;
+        font-size: 14px;
+        letter-spacing: -0.3px;
+        color: var(--text-bright);
+      }
+      .brand__name span {
+        color: var(--accent);
+      }
+      .brand__tag {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-faint);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        padding-left: 8px;
+        border-left: 1px solid var(--border-bright);
+      }
+      .topbar__center {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .search-global {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 5px 12px;
+        width: 340px;
+        transition: all 0.2s;
+      }
+      .search-global:focus-within {
+        border-color: var(--border-active);
+        box-shadow: 0 0 0 3px var(--accent-dim);
+      }
+      .search-global svg {
+        width: 14px;
+        height: 14px;
+        stroke: var(--text-dim);
+        flex-shrink: 0;
+      }
+      .search-global input {
+        background: none;
+        border: none;
+        outline: none;
+        color: var(--text-bright);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        width: 100%;
+      }
+      .search-global input::placeholder {
+        color: var(--text-faint);
+      }
+      .search-global kbd {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        padding: 2px 5px;
+        border-radius: 3px;
+        background: var(--surface2);
+        color: var(--text-dim);
+        border: 1px solid var(--border);
+        cursor: pointer;
+      }
+      .topbar__right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--surface2);
+        border: 1px solid var(--border-bright);
+        border-radius: 6px;
+        padding: 5px 12px;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text);
+        cursor: pointer;
+        transition: all 0.2s;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .btn:hover {
+        border-color: var(--border-active);
+        background: var(--surface3);
+      }
+      .btn--demo {
+        background: var(--accent-dim);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .btn--demo:hover {
+        background: var(--accent-dim);
+        box-shadow: 0 0 8px var(--accent-glow);
+      }
+      .btn svg {
+        width: 12px;
+        height: 12px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+      }
+      .system-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--text-dim);
+      }
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 8px var(--green-glow);
+        animation: pulse 2s ease-in-out infinite;
+      }
+      .clock {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-bright);
+        font-weight: 500;
+        letter-spacing: 1px;
+      }
+      .clock span {
+        color: var(--text-dim);
+      }
+
+      /* MAIN GRID */
+      .main {
+        display: grid;
+        grid-template-columns: 260px 1fr 320px;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      /* PANELS */
+      .panel {
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+      }
+      .panel__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 14px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface2);
+      }
+      .panel__title {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: var(--text-dim);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .panel__title .dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+      }
+      .panel__badge {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: 3px;
+      }
+      .panel__badge--accent {
+        background: var(--accent-dim);
+        color: var(--accent);
+      }
+      .panel__badge--red {
+        background: var(--red-dim);
+        color: var(--red);
+      }
+      .panel__badge--green {
+        background: var(--green-dim);
+        color: var(--green);
+      }
+      .panel__body {
+        padding: 10px 14px;
+        overflow-y: auto;
+      }
+
+      /* SIDEBAR LEFT */
+      .sidebar-left {
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* METRICS */
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .metric {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 10px 12px;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.2s;
+      }
+      .metric:hover {
+        border-color: var(--border-bright);
+      }
+      .metric--wide {
+        grid-column: 1 / -1;
+      }
+      .metric__label {
+        font-family: var(--font-mono);
+        font-size: 8px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--text-faint);
+        margin-bottom: 4px;
+      }
+      .metric__value {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        color: var(--text-bright);
+      }
+      .metric--accent .metric__value {
+        color: var(--accent);
+      }
+      .metric--green .metric__value {
+        color: var(--green);
+      }
+      .metric--amber .metric__value {
+        color: var(--amber);
+      }
+      .metric--red .metric__value {
+        color: var(--red);
+      }
+      .metric__sub {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-faint);
+        margin-top: 3px;
+      }
+      .metric__sparkline {
+        margin-top: 6px;
+        height: 18px;
+      }
+      .metric__sparkline svg {
+        width: 100%;
+        height: 100%;
+      }
+
+      /* WATCHLIST */
+      .watchlist-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 7px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .watchlist-item:last-child {
+        border-bottom: none;
+      }
+      .watchlist-item__plate {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--red);
+        background: var(--red-dim);
+        padding: 3px 7px;
+        border-radius: 3px;
+        letter-spacing: 0.5px;
+      }
+      .watchlist-item__reason {
+        font-size: 10px;
+        color: var(--text-dim);
+      }
+      .watchlist-item__time {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-faint);
+      }
+
+      /* EDGE NODES */
+      .edge-node {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .edge-node:last-child {
+        border-bottom: none;
+      }
+      .edge-node__status {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .edge-node__status--online {
+        background: var(--green);
+        box-shadow: 0 0 6px var(--green-glow);
+      }
+      .edge-node__status--active {
+        background: var(--amber);
+        box-shadow: 0 0 6px var(--amber-glow);
+      }
+      .edge-node__status--alert {
+        background: var(--red);
+        box-shadow: 0 0 6px var(--red-glow);
+        animation: pulse 1s ease-in-out infinite;
+      }
+      .edge-node__id {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--text);
+        font-weight: 500;
+      }
+      .edge-node__cam {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-faint);
+      }
+      .edge-node__load {
+        margin-left: auto;
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-dim);
+      }
+
+      /* CENTER MAP */
+      .center-panel {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+      }
+      .map-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 16px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        z-index: 10;
+      }
+      .map-header__left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .map-header__title {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: var(--text-dim);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .map-header__title .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent-glow);
+        animation: pulse 2s ease-in-out infinite;
+      }
+      .map-header__legend {
+        display: flex;
+        gap: 14px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-dim);
+      }
+      .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+      .legend-dot--green {
+        background: var(--green);
+        box-shadow: 0 0 4px var(--green-glow);
+      }
+      .legend-dot--amber {
+        background: var(--amber);
+        box-shadow: 0 0 4px var(--amber-glow);
+      }
+      .legend-dot--red {
+        background: var(--red);
+        box-shadow: 0 0 4px var(--red-glow);
+      }
+      .legend-dot--accent {
+        background: var(--accent);
+        box-shadow: 0 0 4px var(--accent-glow);
+        border-radius: 2px;
+      }
+      .map-container {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+      #map {
+        height: 100%;
+        width: 100%;
+        background: var(--surface2);
+      }
+      .map-overlay {
+        position: absolute;
+        bottom: 12px;
+        left: 12px;
+        z-index: 600;
+        display: flex;
+        gap: 8px;
+      }
+      .map-stat {
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(8px);
+        border: 1px solid var(--border-bright);
+        box-shadow: var(--shadow-sm);
+        border-radius: 6px;
+        padding: 8px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .map-stat__label {
+        font-family: var(--font-mono);
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--text-faint);
+      }
+      .map-stat__value {
+        font-family: var(--font-mono);
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-bright);
+      }
+      .map-stat--accent .map-stat__value {
+        color: var(--accent);
+      }
+      .map-stat--green .map-stat__value {
+        color: var(--green);
+      }
+
+      /* MAP MARKERS */
+      .cam-marker {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #ffffff;
+      }
+      .cam-marker--green {
+        background: var(--green);
+        box-shadow: 0 0 6px var(--green-glow);
+      }
+      .cam-marker--amber {
+        background: var(--amber);
+        box-shadow: 0 0 6px var(--amber-glow);
+      }
+      .cam-marker--red {
+        background: var(--red);
+        box-shadow: 0 0 8px var(--red-glow);
+        animation: pulse 1s ease-in-out infinite;
+      }
+      .cam-marker--red::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        border: 1px solid var(--red);
+        border-radius: 50%;
+        opacity: 0.5;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      .vehicle-marker {
+        background: var(--surface);
+        border: 1.5px solid var(--accent);
+        border-radius: 4px;
+        padding: 3px 7px;
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--accent);
+        white-space: nowrap;
+        box-shadow: var(--shadow-sm);
+      }
+      .alert-marker {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--red);
+        border: 2px solid #ffffff;
+        box-shadow: 0 0 10px var(--red-glow);
+        animation: pulseGlow 1.5s ease-in-out infinite;
+      }
+      .ripple-marker {
+        border-radius: 50%;
+        border: 2px solid var(--accent);
+        animation: pulseRing 2s ease-out infinite;
+      }
+
+      /* SIDEBAR RIGHT */
+      .sidebar-right {
+        background: var(--surface);
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* TABS */
+      .sidebar-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface2);
+      }
+      .tab {
+        flex: 1;
+        padding: 8px 4px;
+        text-align: center;
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-faint);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+      }
+      .tab:hover {
+        color: var(--text-dim);
+      }
+      .tab--active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+        background: var(--surface);
+      }
+      .tab__badge {
+        font-size: 8px;
+        padding: 1px 4px;
+        border-radius: 3px;
+        margin-left: 2px;
+      }
+      .tab__badge--red {
+        background: var(--red-dim);
+        color: var(--red);
+      }
+      .tab__badge--accent {
+        background: var(--accent-dim);
+        color: var(--accent);
+      }
+
+      /* TAB CONTENT */
+      .tab-content {
+        flex: 1;
+        overflow-y: auto;
+        display: none;
+      }
+      .tab-content--active {
+        display: block;
+      }
+
+      /* ALERTS */
+      .alert-card {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        transition: background 0.15s;
+        animation: slideInRight 0.3s ease-out both;
+        position: relative;
+      }
+      .alert-card:hover {
+        background: var(--surface2);
+      }
+      .alert-card::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+      }
+      .alert-card--watchlist::before {
+        background: var(--red);
+      }
+      .alert-card--anomaly::before {
+        background: var(--amber);
+      }
+      .alert-card--info::before {
+        background: var(--accent);
+      }
+      .alert-card__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4px;
+      }
+      .alert-card__type {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .alert-card--watchlist .alert-card__type {
+        color: var(--red);
+      }
+      .alert-card--anomaly .alert-card__type {
+        color: var(--amber);
+      }
+      .alert-card--info .alert-card__type {
+        color: var(--accent);
+      }
+      .alert-card__time {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-faint);
+      }
+      .alert-card__desc {
+        font-size: 12px;
+        color: var(--text);
+        line-height: 1.4;
+        margin-bottom: 3px;
+      }
+      .alert-card__desc strong {
+        color: var(--text-bright);
+        font-family: var(--font-mono);
+        font-weight: 600;
+      }
+      .alert-card--watchlist .alert-card__desc strong {
+        color: var(--red);
+      }
+      .alert-card--info .alert-card__desc strong {
+        color: var(--accent);
+      }
+      .alert-card__location {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-dim);
+      }
+
+      /* DETECTIONS */
+      .detection-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 14px;
+        border-bottom: 1px solid var(--border);
+        animation: fadeIn 0.3s ease-out both;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .detection-row:hover {
+        background: var(--surface2);
+      }
+      .detection-row__plate {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 600;
+        background: var(--accent-dim);
+        color: var(--accent);
+        padding: 2px 6px;
+        border-radius: 3px;
+        min-width: 72px;
+        text-align: center;
+        border: 1px solid var(--accent-dim);
+      }
+      .detection-row__plate--flagged {
+        background: var(--red-dim);
+        color: var(--red);
+        border-color: var(--red-dim);
+      }
+      .detection-row__details {
+        flex: 1;
+        font-size: 11px;
+        color: var(--text-dim);
+      }
+      .detection-row__details strong {
+        color: var(--text);
+      }
+      .detection-row__time {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-faint);
+      }
+      .detection-row__confidence {
+        font-family: var(--font-mono);
+        font-size: 8px;
+        color: var(--green);
+      }
+
+      /* TRAIL */
+      .trail-container {
+        padding: 12px 14px;
+      }
+      .trail-timeline {
+        position: relative;
+        padding-left: 16px;
+      }
+      .trail-timeline::before {
+        content: "";
+        position: absolute;
+        left: 5px;
+        top: 4px;
+        bottom: 4px;
+        width: 1px;
+        background: linear-gradient(
+          180deg,
+          var(--green) 0%,
+          var(--accent) 50%,
+          var(--red) 100%
+        );
+        opacity: 0.4;
+      }
+      .trail-stop {
+        position: relative;
+        padding-bottom: 14px;
+      }
+      .trail-stop:last-child {
+        padding-bottom: 0;
+      }
+      .trail-stop::before {
+        content: "";
+        position: absolute;
+        left: -15px;
+        top: 4px;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--accent);
+        border: 1.5px solid var(--surface);
+        box-shadow: 0 0 6px var(--accent-glow);
+      }
+      .trail-stop--start::before {
+        background: var(--green);
+        box-shadow: 0 0 6px var(--green-glow);
+      }
+      .trail-stop--end::before {
+        background: var(--red);
+        box-shadow: 0 0 6px var(--red-glow);
+        animation: pulse 1s ease-in-out infinite;
+      }
+      .trail-stop__time {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-dim);
+      }
+      .trail-stop__location {
+        font-size: 11px;
+        color: var(--text-bright);
+        font-weight: 500;
+        margin: 1px 0;
+      }
+      .trail-stop__camera {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--accent);
+      }
+      .trail-stop--end .trail-stop__camera {
+        color: var(--red);
+      }
+
+      /* CAMERA GRID */
+      .camera-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        padding: 10px 14px;
+      }
+      .camera-grid-item {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .camera-grid-item:hover {
+        border-color: var(--border-active);
+        background: var(--surface2);
+      }
+      .camera-grid-item__header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 4px;
+      }
+      .camera-grid-item__dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+      }
+      .camera-grid-item__dot--green {
+        background: var(--green);
+        box-shadow: 0 0 4px var(--green-glow);
+      }
+      .camera-grid-item__dot--yellow {
+        background: var(--amber);
+        box-shadow: 0 0 4px var(--amber-glow);
+      }
+      .camera-grid-item__dot--red {
+        background: var(--red);
+        box-shadow: 0 0 4px var(--red-glow);
+        animation: pulse 1s ease-in-out infinite;
+      }
+      .camera-grid-item__id {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .camera-grid-item__loc {
+        font-size: 10px;
+        color: var(--text-dim);
+      }
+      .camera-grid-item__dist {
+        font-family: var(--font-mono);
+        font-size: 8px;
+        color: var(--text-faint);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      /* TOAST */
+      .toast-container {
+        position: fixed;
+        top: 60px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        pointer-events: none;
+      }
+      .toast {
+        background: var(--surface2);
+        border: 1px solid var(--border-bright);
+        border-radius: 8px;
+        padding: 12px 16px;
+        min-width: 280px;
+        max-width: 400px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        animation: slideInRight 0.3s ease-out both;
+        pointer-events: auto;
+      }
+      .toast--info {
+        border-left: 3px solid var(--accent);
+      }
+      .toast--success {
+        border-left: 3px solid var(--green);
+      }
+      .toast--warning {
+        border-left: 3px solid var(--amber);
+      }
+      .toast--error {
+        border-left: 3px solid var(--red);
+      }
+      .toast__title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-bright);
+        margin-bottom: 2px;
+      }
+      .toast__desc {
+        font-size: 11px;
+        color: var(--text-dim);
+      }
+
+      /* COMMAND PALETTE */
+      .cmd-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(7, 11, 20, 0.8);
+        backdrop-filter: blur(4px);
+        z-index: 9000;
+        display: none;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 120px;
+      }
+      .cmd-overlay--open {
+        display: flex;
+      }
+      .cmd-box {
+        background: var(--surface);
+        border: 1px solid var(--border-active);
+        border-radius: 10px;
+        width: 560px;
+        max-width: 90vw;
+        box-shadow:
+          0 16px 64px rgba(0, 0, 0, 0.5),
+          0 0 0 1px var(--accent-dim);
+        overflow: hidden;
+      }
+      .cmd-input-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+      }
+      .cmd-input-wrap svg {
+        width: 16px;
+        height: 16px;
+        stroke: var(--text-dim);
+        fill: none;
+        stroke-width: 2;
+      }
+      .cmd-input {
+        background: none;
+        border: none;
+        outline: none;
+        color: var(--text-bright);
+        font-family: var(--font-mono);
+        font-size: 14px;
+        width: 100%;
+      }
+      .cmd-input::placeholder {
+        color: var(--text-faint);
+      }
+      .cmd-results {
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      .cmd-group__label {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--text-faint);
+        padding: 8px 16px 4px;
+      }
+      .cmd-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .cmd-item:hover,
+      .cmd-item--active {
+        background: var(--surface2);
+      }
+      .cmd-item__icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: var(--accent-dim);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .cmd-item__icon svg {
+        width: 14px;
+        height: 14px;
+        stroke: var(--accent);
+        fill: none;
+        stroke-width: 2;
+      }
+      .cmd-item__body {
+        flex: 1;
+        min-width: 0;
+      }
+      .cmd-item__title {
+        font-size: 13px;
+        color: var(--text-bright);
+        font-weight: 500;
+      }
+      .cmd-item__sub {
+        font-size: 11px;
+        color: var(--text-dim);
+      }
+      .cmd-item__enter {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-faint);
+        padding: 2px 5px;
+        border-radius: 3px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+      }
+
+      /* LEAFLET OVERRIDES */
+      .leaflet-container {
+        background: var(--surface2) !important;
+        font-family: var(--font-display) !important;
+      }
+      .leaflet-popup-content-wrapper {
+        background: var(--surface) !important;
+        color: var(--text) !important;
+        border: 1px solid var(--border-active) !important;
+        border-radius: 6px !important;
+        box-shadow:
+          var(--shadow),
+          0 0 0 1px var(--accent-dim) !important;
+      }
+      .leaflet-popup-content {
+        font-size: 11px !important;
+        margin: 8px 10px !important;
+        font-family: var(--font-mono) !important;
+      }
+      .leaflet-popup-content strong {
+        color: var(--accent) !important;
+        font-size: 12px !important;
+      }
+      .leaflet-popup-tip {
+        background: var(--surface) !important;
+        border: 1px solid var(--border-active) !important;
+      }
+      .leaflet-control-attribution {
+        background: rgba(255, 255, 255, 0.85) !important;
+        color: var(--text-faint) !important;
+        font-size: 8px !important;
+        padding: 2px 6px !important;
+      }
+      .leaflet-control-attribution a {
+        color: var(--text-dim) !important;
+      }
+      .leaflet-control-zoom a {
+        background: var(--surface) !important;
+        color: var(--text) !important;
+        border-color: var(--border-bright) !important;
+      }
+      .leaflet-control-zoom a:hover {
+        background: var(--surface2) !important;
+      }
+      .marker-cluster-small {
+        background: var(--accent-dim) !important;
+        color: var(--accent) !important;
+      }
+      .marker-cluster-small div {
+        background: var(--accent-dim) !important;
+        color: var(--accent) !important;
+        border: 1px solid var(--accent) !important;
+      }
+      .marker-cluster-medium {
+        background: var(--amber-dim) !important;
+        color: var(--amber) !important;
+      }
+      .marker-cluster-medium div {
+        background: var(--amber-dim) !important;
+        color: var(--amber) !important;
+        border: 1px solid var(--amber) !important;
+      }
+
+      /* ARCH BANNER */
+      .arch-banner {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        padding: 8px 16px;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(8px);
+        border-top: 1px solid var(--border);
+        z-index: 600;
+      }
+      .arch-card {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+      }
+      .arch-card__num {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-weight: 700;
+        width: 20px;
+        height: 20px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .arch-card--accent .arch-card__num {
+        color: var(--accent);
+        background: var(--accent-dim);
+      }
+      .arch-card--green .arch-card__num {
+        color: var(--green);
+        background: var(--green-dim);
+      }
+      .arch-card--amber .arch-card__num {
+        color: var(--amber);
+        background: var(--amber-dim);
+      }
+      .arch-card--purple .arch-card__num {
+        color: var(--purple);
+        background: var(--purple-dim);
+      }
+      .arch-card__body {
+        min-width: 0;
+      }
+      .arch-card__title {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-bright);
+      }
+      .arch-card__desc {
+        font-size: 9px;
+        color: var(--text-faint);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      @media (max-width: 1280px) {
+        .main {
+          grid-template-columns: 240px 1fr 300px;
+        }
+        .search-global {
+          width: 240px;
+        }
+        .arch-banner {
+          display: none;
+        }
+      }
+      @media (max-width: 1024px) {
+        .main {
+          grid-template-columns: 1fr;
+        }
+        .sidebar-left,
+        .sidebar-right {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="topbar__left">
+          <div class="brand">
+            <div class="brand__logo">
+              <svg viewBox="0 0 28 28" fill="none">
+                <path
+                  d="M14 2L3 8V20L14 26L25 20V8L14 2Z"
+                  stroke="#14509e"
+                  stroke-width="1.5"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M14 2L3 8L14 14L25 8L14 2Z"
+                  stroke="#0a7d4b"
+                  stroke-width="1"
+                  stroke-linejoin="round"
+                  opacity="0.6"
+                />
+                <circle cx="14" cy="14" r="2.5" fill="#14509e" />
+                <circle
+                  cx="14"
+                  cy="14"
+                  r="5"
+                  stroke="#14509e"
+                  stroke-width="0.5"
+                  opacity="0.4"
+                />
+                <circle
+                  cx="14"
+                  cy="14"
+                  r="8"
+                  stroke="#14509e"
+                  stroke-width="0.3"
+                  opacity="0.25"
+                />
+              </svg>
+            </div>
+            <div class="brand__name">EIN<span>.</span></div>
+            <div class="brand__tag">Edge Intelligence Network</div>
+          </div>
+        </div>
+        <div class="topbar__center">
+          <div class="search-global">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4.5-4.5" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search plates, locations, vehicle types…"
+              id="searchInput"
+            />
+            <kbd onclick="openCommandPalette()">⌘K</kbd>
+          </div>
+          <button
+            class="btn btn--demo"
+            id="btnDemo"
+            onclick="runDemoScenario()"
+          >
+            <svg viewBox="0 0 24 24">
+              <polygon points="6 3 20 12 6 21 6 3" />
+            </svg>
+            Run Demo
+          </button>
+          <button class="btn" id="btnPlay" onclick="toggleSimulator()">
+            <svg id="playIcon" viewBox="0 0 24 24">
+              <rect x="6" y="4" width="4" height="16" />
+              <rect x="14" y="4" width="4" height="16" />
+            </svg>
+            <span id="playLabel">Pause Feed</span>
+          </button>
+        </div>
+        <div class="topbar__right">
+          <div class="system-status">
+            <div class="status-dot"></div>
+            <span id="statusText">30 cameras · 15 edge nodes</span>
+          </div>
+          <div class="clock" id="clock">14:23:01 <span>IST</span></div>
+        </div>
+      </header>
+
+      <div class="main">
+        <!-- LEFT SIDEBAR -->
+        <aside class="sidebar-left">
+          <div class="panel">
+            <div class="panel__header">
+              <div class="panel__title">
+                <span class="dot" style="background: var(--accent)"></span
+                >System Metrics
+              </div>
+            </div>
+            <div class="panel__body">
+              <div class="metrics-grid">
+                <div class="metric metric--accent">
+                  <div class="metric__label">Cameras</div>
+                  <div class="metric__value" id="kpiCameras">30</div>
+                  <div class="metric__sub">of 50 online</div>
+                </div>
+                <div class="metric metric--green">
+                  <div class="metric__label">Detect/min</div>
+                  <div class="metric__value" id="kpiDetections">347</div>
+                  <div class="metric__sub" id="kpiDetectionsSub">
+                    ↑ 12% last hr
+                  </div>
+                </div>
+                <div class="metric metric--accent">
+                  <div class="metric__label">Plates Read</div>
+                  <div class="metric__value" id="kpiPlates">1,284</div>
+                  <div class="metric__sub">94.2% accuracy</div>
+                </div>
+                <div class="metric metric--amber">
+                  <div class="metric__label">Trails</div>
+                  <div class="metric__value" id="kpiTrails">23</div>
+                  <div class="metric__sub">cross-camera</div>
+                </div>
+                <div class="metric metric--red">
+                  <div class="metric__label">Alerts 24h</div>
+                  <div class="metric__value" id="kpiAlerts">7</div>
+                  <div class="metric__sub" id="kpiAlertsSub">2 watchlist</div>
+                </div>
+                <div class="metric">
+                  <div class="metric__label">Response</div>
+                  <div class="metric__value" id="kpiLatency">
+                    1.2<span style="font-size: 14px">s</span>
+                  </div>
+                  <div class="metric__sub">edge → alert</div>
+                </div>
+                <div class="metric metric--wide metric--green">
+                  <div class="metric__label">
+                    Bandwidth Saved vs Centralized
+                  </div>
+                  <div class="metric__value" style="font-size: 18px">
+                    99.97%
+                  </div>
+                  <div class="metric__sub">
+                    metadata only — zero video to center
+                  </div>
+                  <div class="metric__sparkline" id="sparkDetections"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel__header">
+              <div class="panel__title">
+                <span class="dot" style="background: var(--red)"></span
+                >Watchlist
+              </div>
+              <div class="panel__badge panel__badge--red" id="watchlistCount">
+                2
+              </div>
+            </div>
+            <div
+              class="panel__body"
+              id="watchlistFeed"
+              style="padding: 8px 14px"
+            ></div>
+          </div>
+          <div class="panel" style="flex: 1; overflow-y: auto">
+            <div class="panel__header">
+              <div class="panel__title">
+                <span class="dot" style="background: var(--green)"></span>Edge
+                Nodes
+              </div>
+              <div class="panel__badge panel__badge--green">12/12</div>
+            </div>
+            <div
+              class="panel__body"
+              style="padding: 8px 14px"
+              id="edgeNodesFeed"
+            ></div>
+          </div>
+        </aside>
+
+        <!-- CENTER MAP -->
+        <main class="center-panel">
+          <div class="map-header">
+            <div class="map-header__left">
+              <div class="map-header__title">
+                <span class="dot"></span>Live Intelligence Map — Gujarat
+              </div>
+              <div class="map-header__legend">
+                <div class="legend-item">
+                  <div class="legend-dot legend-dot--green"></div>
+                  Idle
+                </div>
+                <div class="legend-item">
+                  <div class="legend-dot legend-dot--amber"></div>
+                  Active
+                </div>
+                <div class="legend-item">
+                  <div class="legend-dot legend-dot--red"></div>
+                  Alert
+                </div>
+                <div class="legend-item">
+                  <div class="legend-dot legend-dot--accent"></div>
+                  Vehicle
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="map-container">
+            <div id="map"></div>
+            <div class="map-overlay">
+              <div class="map-stat map-stat--accent">
+                <div class="map-stat__label">Tracking</div>
+                <div class="map-stat__value" id="mapTracking">23</div>
+              </div>
+              <div class="map-stat map-stat--green">
+                <div class="map-stat__label">Detected Today</div>
+                <div class="map-stat__value" id="mapDetected">8,421</div>
+              </div>
+              <div class="map-stat">
+                <div class="map-stat__label">Search Radius</div>
+                <div class="map-stat__value">Statewide</div>
+              </div>
+            </div>
+            <div class="arch-banner">
+              <div class="arch-card arch-card--green">
+                <div class="arch-card__num">1</div>
+                <div class="arch-card__body">
+                  <div class="arch-card__title">Edge AI</div>
+                  <div class="arch-card__desc">YOLOv8 + OCR at camera</div>
+                </div>
+              </div>
+              <div class="arch-card arch-card--accent">
+                <div class="arch-card__num">2</div>
+                <div class="arch-card__body">
+                  <div class="arch-card__title">Mesh</div>
+                  <div class="arch-card__desc">MQTT metadata stream</div>
+                </div>
+              </div>
+              <div class="arch-card arch-card--amber">
+                <div class="arch-card__num">3</div>
+                <div class="arch-card__body">
+                  <div class="arch-card__title">Brain</div>
+                  <div class="arch-card__desc">Redis + PostGIS correlation</div>
+                </div>
+              </div>
+              <div class="arch-card arch-card--purple">
+                <div class="arch-card__num">4</div>
+                <div class="arch-card__body">
+                  <div class="arch-card__title">Command</div>
+                  <div class="arch-card__desc">GIS dashboard + search</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <!-- RIGHT SIDEBAR -->
+        <aside class="sidebar-right">
+          <div class="sidebar-tabs">
+            <div
+              class="tab tab--active"
+              data-tab="alerts"
+              onclick="switchTab('alerts')"
+            >
+              Alerts<span class="tab__badge tab__badge--red" id="tabAlertsCount"
+                >7</span
+              >
+            </div>
+            <div
+              class="tab"
+              data-tab="detections"
+              onclick="switchTab('detections')"
+            >
+              Live
+            </div>
+            <div class="tab" data-tab="trail" onclick="switchTab('trail')">
+              Trail
+            </div>
+            <div class="tab" data-tab="cameras" onclick="switchTab('cameras')">
+              Cams
+            </div>
+          </div>
+          <div
+            class="tab-content tab-content--active"
+            id="panelAlerts"
+            data-tab="alerts"
+          ></div>
+          <div
+            class="tab-content"
+            id="panelDetections"
+            data-tab="detections"
+          ></div>
+          <div class="tab-content" id="panelTrail" data-tab="trail"></div>
+          <div class="tab-content" id="panelCameras" data-tab="cameras"></div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- COMMAND PALETTE -->
+    <div
+      class="cmd-overlay"
+      id="cmdOverlay"
+      onclick="if (event.target === this) closeCommandPalette();"
+    >
+      <div class="cmd-box">
+        <div class="cmd-input-wrap">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.5-4.5" />
+          </svg>
+          <input
+            type="text"
+            class="cmd-input"
+            id="cmdInput"
+            placeholder="Search commands, plates, cameras…"
+            autocomplete="off"
+          />
+        </div>
+        <div class="cmd-results" id="cmdResults"></div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script>
+      // ===== UTILS =====
+      const $ = (id) => document.getElementById(id);
+      const pad = (n) => String(n).padStart(2, "0");
+      const fmtTime = (d) =>
+        `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      const fmtTimeShort = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      const fmtNum = (n) => n.toLocaleString("en-IN");
+      const rand = (a) => a[Math.floor(Math.random() * a.length)];
+      const haversine = (lat1, lon1, lat2, lon2) => {
+        const R = 6371,
+          toRad = (d) => (d * Math.PI) / 180;
+        const dLat = toRad(lat2 - lat1),
+          dLon = toRad(lon2 - lon1);
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRad(lat1)) *
+            Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      };
+
+      // ===== 50 CAMERAS =====
+      const CAMERAS = [
+        {
+          id: "cam01",
+          lat: 23.0225,
+          lon: 72.5714,
+          loc: "Chimanbhai Bridge",
+          dist: "Ahmedabad",
+          status: "green",
+        },
+        {
+          id: "cam02",
+          lat: 23.03,
+          lon: 72.58,
+          loc: "Janpath",
+          dist: "Ahmedabad",
+          status: "green",
+        },
+        {
+          id: "cam03",
+          lat: 23.038,
+          lon: 72.529,
+          loc: "ONGC Office",
+          dist: "Ahmedabad",
+          status: "green",
+        },
+        {
+          id: "cam04",
+          lat: 23.018,
+          lon: 72.572,
+          loc: "Paldi Circle",
+          dist: "Ahmedabad",
+          status: "green",
+        },
+        {
+          id: "cam05",
+          lat: 23.046,
+          lon: 72.56,
+          loc: "Visat Teen Rasta",
+          dist: "Ahmedabad",
+          status: "green",
+        },
+        {
+          id: "cam06",
+          lat: 21.52,
+          lon: 70.46,
+          loc: "Timbavadi Gate",
+          dist: "Junagadh",
+          status: "green",
+        },
+        {
+          id: "cam07",
+          lat: 20.89,
+          lon: 70.4,
+          loc: "Hero Showroom",
+          dist: "Gir-Somnath",
+          status: "green",
+        },
+        {
+          id: "cam08",
+          lat: 21.51,
+          lon: 70.45,
+          loc: "Majewadi Gate",
+          dist: "Junagadh",
+          status: "green",
+        },
+        {
+          id: "cam09",
+          lat: 21.54,
+          lon: 70.47,
+          loc: "New Bypass",
+          dist: "Junagadh",
+          status: "green",
+        },
+        {
+          id: "cam10",
+          lat: 21.525,
+          lon: 70.465,
+          loc: "Char Chowk Road",
+          dist: "Junagadh",
+          status: "green",
+        },
+        {
+          id: "cam11",
+          lat: 21.515,
+          lon: 70.455,
+          loc: "Dolatpara",
+          dist: "Junagadh",
+          status: "green",
+        },
+        {
+          id: "cam12",
+          lat: 23.17,
+          lon: 72.54,
+          loc: "Tri Mandir Adalaj",
+          dist: "Gandhinagar",
+          status: "green",
+        },
+        {
+          id: "cam13",
+          lat: 23.04,
+          lon: 72.57,
+          loc: "CN Vidhyalaya",
+          dist: "Ahmedabad",
+          status: "green",
+        },
+        {
+          id: "cam14",
+          lat: 23.05,
+          lon: 72.575,
+          loc: "Delight RLVD",
+          dist: "Ahmedabad",
+          status: "green",
+        },
+        {
+          id: "cam15",
+          lat: 23.035,
+          lon: 72.565,
+          loc: "Suvidha Park",
+          dist: "Ahmedabad",
+          status: "green",
+        },
+        {
+          id: "cam16",
+          lat: 23.048,
+          lon: 72.562,
+          loc: "Visat P2",
+          dist: "Ahmedabad",
+          status: "green",
+        },
+        {
+          id: "cam17",
+          lat: 22.3,
+          lon: 70.77,
+          loc: "Rajkot Bus Port",
+          dist: "Rajkot",
+          status: "green",
+        },
+        {
+          id: "cam18",
+          lat: 22.31,
+          lon: 70.78,
+          loc: "Rajkot CCTV",
+          dist: "Rajkot",
+          status: "green",
+        },
+        {
+          id: "cam19",
+          lat: 20.95,
+          lon: 72.85,
+          loc: "Khaparia Gram Panchayat",
+          dist: "Navsari",
+          status: "green",
+        },
+        {
+          id: "cam20",
+          lat: 23.02,
+          lon: 72.56,
+          loc: "Mohanpura",
+          dist: "Ahmedabad",
+          status: "green",
+        },
+        {
+          id: "cam21",
+          lat: 23.85,
+          lon: 71.2,
+          loc: "Patan Dethali Char Rasta",
+          dist: "Patan",
+          status: "green",
+        },
+        {
+          id: "cam22",
+          lat: 23.6,
+          lon: 72.4,
+          loc: "BK Mervada Trani Rasta",
+          dist: "Mehsana",
+          status: "green",
+        },
+        {
+          id: "cam23",
+          lat: 22.9,
+          lon: 72.5,
+          loc: "Kheram",
+          dist: "Ahmedabad",
+          status: "green",
+        },
+        {
+          id: "cam24",
+          lat: 21.9,
+          lon: 73.4,
+          loc: "Deshgam",
+          dist: "Narmada",
+          status: "green",
+        },
+        {
+          id: "cam25",
+          lat: 23.1,
+          lon: 72.6,
+          loc: "Dhanori",
+          dist: "Ahmedabad",
+          status: "green",
+        },
+        {
+          id: "cam26",
+          lat: 23.3,
+          lon: 72.7,
+          loc: "Tankal",
+          dist: "Gandhinagar",
+          status: "green",
+        },
+        {
+          id: "cam27",
+          lat: 20.78,
+          lon: 72.95,
+          loc: "Bilimora 1",
+          dist: "Navsari",
+          status: "green",
+        },
+        {
+          id: "cam28",
+          lat: 20.79,
+          lon: 72.96,
+          loc: "Bilimora 2",
+          dist: "Navsari",
+          status: "green",
+        },
+        {
+          id: "cam29",
+          lat: 20.77,
+          lon: 72.94,
+          loc: "Bilimora 3",
+          dist: "Navsari",
+          status: "green",
+        },
+        {
+          id: "cam30",
+          lat: 23.07,
+          lon: 70.13,
+          loc: "Gandhidham Rambaugh P2",
+          dist: "Kutch",
+          status: "green",
+        },
+      ];
+      const CAMERA_BY_ID = {};
+      CAMERAS.forEach((c) => (CAMERA_BY_ID[c.id] = c));
+
+      // ===== STATE =====
+      const State = {
+        detections: [],
+        alerts: [],
+        watchlist: new Map(),
+        trails: new Map(),
+        platesRead: 1284,
+        detectionTimestamps: [],
+        simRunning: true,
+        simInterval: null,
+        demoRunning: false,
+        selectedPlate: null,
+        activeTab: "alerts",
+        cameraMarkers: new Map(),
+        trailLayer: null,
+        vehicleMarker: null,
+        detectedToday: 8421,
+      };
+
+      // Seed watchlist
+      State.watchlist.set("GJ01AB1234", {
+        plate: "GJ01AB1234",
+        reason: "Stolen vehicle report",
+        time: "12h ago",
+        status: "active",
+      });
+      State.watchlist.set("GJ05XY9988", {
+        plate: "GJ05XY9988",
+        reason: "Flagged — investigation",
+        time: "3d ago",
+        status: "active",
+      });
+
+      // Seed alerts
+      State.alerts = [
+        {
+          id: 1,
+          type: "watchlist",
+          desc: "Vehicle <strong>GJ01AB1234</strong> matched watchlist — stolen vehicle",
+          cam: CAMERA_BY_ID["cam11"],
+          time: new Date(Date.now() - 3600000),
+          plate: "GJ01AB1234",
+        },
+        {
+          id: 2,
+          type: "anomaly",
+          desc: "Wrong-way driving near <strong>Ahmedabad Railway</strong>",
+          cam: CAMERA_BY_ID["cam08"],
+          time: new Date(Date.now() - 7200000),
+        },
+        {
+          id: 3,
+          type: "anomaly",
+          desc: "Unattended object 8+ min at <strong>Bharuch Junction</strong>",
+          cam: CAMERA_BY_ID["cam29"],
+          time: new Date(Date.now() - 10800000),
+        },
+        {
+          id: 4,
+          type: "watchlist",
+          desc: "Vehicle <strong>GJ05XY9988</strong> — flagged vehicle",
+          cam: CAMERA_BY_ID["cam18"],
+          time: new Date(Date.now() - 14400000),
+          plate: "GJ05XY9988",
+        },
+        {
+          id: 5,
+          type: "anomaly",
+          desc: "Crowd density threshold at <strong>Surat Station</strong>",
+          cam: CAMERA_BY_ID["cam11"],
+          time: new Date(Date.now() - 18000000),
+        },
+        {
+          id: 6,
+          type: "info",
+          desc: "New trail: <strong>GJ01CD4567</strong> → 4 cameras",
+          cam: null,
+          time: new Date(Date.now() - 21600000),
+        },
+        {
+          id: 7,
+          type: "info",
+          desc: "ANPR recalibrated for <strong>CAM_034</strong> — rain",
+          cam: CAMERA_BY_ID["cam17"],
+          time: new Date(Date.now() - 25200000),
+        },
+      ];
+
+      // Seed trail for demo plate
+      State.trails.set("GJ01AB1234", [
+        {
+          camera_id: "cam11",
+          camera: CAMERA_BY_ID["cam11"],
+          plate: "GJ01AB1234",
+          timestamp: new Date(Date.now() - 5400000),
+        },
+        {
+          camera_id: "cam29",
+          camera: CAMERA_BY_ID["cam29"],
+          plate: "GJ01AB1234",
+          timestamp: new Date(Date.now() - 3600000),
+        },
+        {
+          camera_id: "cam18",
+          camera: CAMERA_BY_ID["cam18"],
+          plate: "GJ01AB1234",
+          timestamp: new Date(Date.now() - 1800000),
+        },
+      ]);
+
+      const VEHICLE_TYPES = [
+        { type: "Sedan", colors: ["White", "Black", "Silver", "Blue"] },
+        { type: "SUV", colors: ["Red", "White", "Black"] },
+        { type: "Truck", colors: ["Blue", "Orange"] },
+        { type: "Bike", colors: ["Black", "Red"] },
+        { type: "Van", colors: ["White"] },
+      ];
+      const genPlate = () =>
+        `GJ0${Math.floor(Math.random() * 7) + 1}${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${Math.floor(Math.random() * 9000) + 1000}`;
+      const pickVehicle = () => {
+        const v = rand(VEHICLE_TYPES);
+        return { type: v.type, color: rand(v.colors) };
+      };
+
+      // ===== MAP =====
+      let map, markerCluster;
+      function initMap() {
+        map = L.map("map", {
+          center: [22.25, 71.78],
+          zoom: 7,
+          zoomControl: true,
+          zoomSnap: 0.5,
+        });
+        L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+          { attribution: "&copy; Esri", maxZoom: 16 },
+        ).addTo(map);
+        L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+          { attribution: "&copy; Esri", maxZoom: 16, pane: "overlayPane" },
+        ).addTo(map);
+
+        markerCluster = L.markerClusterGroup({
+          maxClusterRadius: 40,
+          iconCreateFunction: (cluster) => {
+            const count = cluster.getChildCount();
+            const cls =
+              count < 10 ? "marker-cluster-small" : "marker-cluster-medium";
+            return L.divIcon({
+              html: `<div><span>${count}</span></div>`,
+              className: `leaflet-marker-cluster ${cls}`,
+              iconSize: [32, 32],
+            });
+          },
+        });
+
+        CAMERAS.forEach((cam) => {
+          const icon = L.divIcon({
+            className: "",
+            html: `<div class="cam-marker cam-marker--${cam.status}"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6],
+          });
+          const marker = L.marker([cam.lat, cam.lon], { icon }).addTo(
+            markerCluster,
+          );
+          const statusText =
+            cam.status === "red"
+              ? "ALERT"
+              : cam.status === "yellow"
+                ? "ACTIVE"
+                : "IDLE";
+          const sc =
+            cam.status === "red"
+              ? "#b91c1c"
+              : cam.status === "yellow"
+                ? "#b45309"
+                : "#0a7d4b";
+          marker.bindPopup(
+            `<strong>${cam.id}</strong><br>${cam.loc}, ${cam.dist}<br><span style="color:${sc}">● ${statusText}</span>`,
+          );
+          State.cameraMarkers.set(cam.id, { marker, cam });
+        });
+        map.addLayer(markerCluster);
+
+        // Draw initial trail
+        renderTrailOnMap("GJ01AB1234");
+      }
+
+      function updateCameraMarker(camId, status) {
+        const entry = State.cameraMarkers.get(camId);
+        if (!entry) return;
+        const cam = entry.cam;
+        cam.status = status;
+        const icon = L.divIcon({
+          className: "",
+          html: `<div class="cam-marker cam-marker--${status}"></div>`,
+          iconSize: [12, 12],
+          iconAnchor: [6, 6],
+        });
+        entry.marker.setIcon(icon);
+        const statusText =
+          status === "red" ? "ALERT" : status === "yellow" ? "ACTIVE" : "IDLE";
+        const sc =
+          status === "red"
+            ? "#b91c1c"
+            : status === "yellow"
+              ? "#b45309"
+              : "#0a7d4b";
+        entry.marker.setPopupContent(
+          `<strong>${camId}</strong><br>${cam.loc}, ${cam.dist}<br><span style="color:${sc}">● ${statusText}</span>`,
+        );
+      }
+
+      function focusCamera(camId) {
+        const entry = State.cameraMarkers.get(camId);
+        if (!entry) return;
+        map.flyTo([entry.cam.lat, entry.cam.lon], 12, { duration: 1.2 });
+        entry.marker.openPopup();
+      }
+
+      function showDetectionRipple(lat, lon) {
+        const ripple = L.divIcon({
+          className: "",
+          html: `<div class="ripple-marker" style="width:12px;height:12px;"></div>`,
+          iconSize: [12, 12],
+          iconAnchor: [6, 6],
+        });
+        const m = L.marker([lat, lon], { icon: ripple }).addTo(map);
+        setTimeout(() => {
+          map.removeLayer(m);
+        }, 2000);
+      }
+
+      function clearTrailLayer() {
+        if (State.trailLayer) {
+          map.removeLayer(State.trailLayer);
+          State.trailLayer = null;
+        }
+        if (State.vehicleMarker) {
+          map.removeLayer(State.vehicleMarker);
+          State.vehicleMarker = null;
+        }
+      }
+
+      function renderTrailOnMap(plate) {
+        clearTrailLayer();
+        const trail = State.trails.get(plate);
+        if (!trail || trail.length === 0) return;
+        const coords = trail.map((t) => [t.camera.lat, t.camera.lon]);
+
+        // Glow line
+        L.polyline(coords, {
+          color: "#14509e",
+          weight: 6,
+          opacity: 0.15,
+        }).addTo(map);
+        // Main line
+        State.trailLayer = L.polyline(coords, {
+          color: "#14509e",
+          weight: 2,
+          opacity: 0.8,
+          dashArray: "6 4",
+        }).addTo(map);
+
+        // Vehicle marker at last position
+        const last = trail[trail.length - 1];
+        const isAlert = State.watchlist.has(plate);
+        const vIcon = L.divIcon({
+          className: "",
+          html: `<div class="vehicle-marker" style="${isAlert ? "border-color:#b91c1c;color:#b91c1c;box-shadow:0 0 12px rgba(185,28,28,0.32)" : ""}">${plate}</div>`,
+          iconSize: [90, 20],
+          iconAnchor: [45, 10],
+        });
+        State.vehicleMarker = L.marker([last.camera.lat, last.camera.lon], {
+          icon: vIcon,
+        }).addTo(map);
+        State.vehicleMarker.bindPopup(
+          `<strong style="color:${isAlert ? "#b91c1c" : "#14509e"}">${plate}</strong><br>Last: ${last.camera.id} · ${fmtTime(last.timestamp)}<br>${isAlert ? '<span style="color:#b91c1c">WATCHLIST MATCH</span>' : "Tracking active"}`,
+        );
+      }
+
+      // ===== RENDER: ALERTS =====
+      function renderAlertsFeed() {
+        const feed = $("panelAlerts");
+        if (State.alerts.length === 0) {
+          feed.innerHTML =
+            '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:12px">No active alerts</div>';
+          return;
+        }
+        feed.innerHTML = State.alerts
+          .slice()
+          .reverse()
+          .map((a) => {
+            const typeClass =
+              a.type === "watchlist"
+                ? "watchlist"
+                : a.type === "anomaly"
+                  ? "anomaly"
+                  : "info";
+            return `<div class="alert-card alert-card--${typeClass}" onclick="${a.cam ? `focusCamera('${a.cam.id}')` : ""}">
+      <div class="alert-card__header"><span class="alert-card__type">${a.type}</span><span class="alert-card__time">${fmtTime(a.time)}</span></div>
+      <div class="alert-card__desc">${a.desc}</div>
+      ${a.cam ? `<div class="alert-card__location">${a.cam.id} · ${a.cam.loc} · ${a.cam.dist}</div>` : '<div class="alert-card__location">Multiple locations</div>'}
+    </div>`;
+          })
+          .join("");
+        $("tabAlertsCount").textContent = State.alerts.length;
+        $("kpiAlerts").textContent = State.alerts.length;
+        const wl = State.alerts.filter((a) => a.type === "watchlist").length;
+        $("kpiAlertsSub").textContent = `${wl} watchlist`;
+      }
+
+      // ===== RENDER: DETECTIONS =====
+      function renderDetectionsFeed() {
+        const feed = $("panelDetections");
+        const recent = State.detections.slice(-15).reverse();
+        if (recent.length === 0) {
+          feed.innerHTML =
+            '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:12px">Waiting for detections…</div>';
+          return;
+        }
+        feed.innerHTML = recent
+          .map((d) => {
+            const flagged = State.watchlist.has(d.plate);
+            return `<div class="detection-row" onclick="focusCamera('${d.camera_id}')">
+      <div class="detection-row__plate ${flagged ? "detection-row__plate--flagged" : ""}">${d.plate}</div>
+      <div class="detection-row__details"><strong>${d.vehicle_color} ${d.vehicle_type}</strong><br>${d.camera.loc}</div>
+      <div class="detection-row__confidence">${(d.confidence * 100).toFixed(0)}%<br><span class="detection-row__time">${fmtTimeShort(d.timestamp)}</span></div>
+    </div>`;
+          })
+          .join("");
+      }
+
+      // ===== RENDER: TRAIL =====
+      function renderTrailPanel(plate) {
+        const panel = $("panelTrail");
+        const trail = State.trails.get(plate);
+        if (!trail || trail.length === 0) {
+          panel.innerHTML =
+            '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:12px">No trail data. Click a detection to view.</div>';
+          return;
+        }
+        const isAlert = State.watchlist.has(plate);
+        panel.innerHTML = `<div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+    <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-faint);text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">Tracking Vehicle</div>
+    <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:${isAlert ? "var(--red)" : "var(--accent)"}">${plate}</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:2px">${trail.length} stops · ${trail[0].camera.dist} → ${trail[trail.length - 1].camera.dist}</div>
+  </div>
+  <div class="trail-container"><div class="trail-timeline">
+    ${trail
+      .map((stop, i) => {
+        const cls =
+          i === 0
+            ? "trail-stop--start"
+            : i === trail.length - 1
+              ? "trail-stop--end"
+              : "";
+        return `<div class="trail-stop ${cls}">
+        <div class="trail-stop__time">${fmtTime(stop.timestamp)}</div>
+        <div class="trail-stop__location">${stop.camera.loc} — ${stop.camera.dist}</div>
+        <div class="trail-stop__camera">${stop.camera.id} ${i === trail.length - 1 && isAlert ? "· WATCHLIST ALERT" : "· detected"}</div>
+      </div>`;
+      })
+      .join("")}
+  </div></div>`;
+        renderTrailOnMap(plate);
+      }
+
+      // ===== RENDER: CAMERAS =====
+      function renderCameraGrid() {
+        const grid = $("panelCameras");
+        grid.innerHTML = `<div class="camera-grid">${CAMERAS.map((cam) => {
+          return `<div class="camera-grid-item" onclick="focusCamera('${cam.id}')">
+      <div class="camera-grid-item__header">
+        <div class="camera-grid-item__dot camera-grid-item__dot--${cam.status}"></div>
+        <div class="camera-grid-item__id">${cam.id}</div>
+      </div>
+      <div class="camera-grid-item__loc">${cam.loc}</div>
+      <div class="camera-grid-item__dist">${cam.dist}</div>
+    </div>`;
+        }).join("")}</div>`;
+      }
+
+      // ===== RENDER: WATCHLIST =====
+      function renderWatchlistFeed() {
+        const feed = $("watchlistFeed");
+        const items = Array.from(State.watchlist.values());
+        feed.innerHTML = items
+          .map(
+            (w) => `<div class="watchlist-item">
+    <div><div class="watchlist-item__plate">${w.plate}</div><div class="watchlist-item__reason">${w.reason}</div></div>
+    <div class="watchlist-item__time">${w.time}</div>
+  </div>`,
+          )
+          .join("");
+        $("watchlistCount").textContent = items.length;
+      }
+
+      // ===== RENDER: EDGE NODES =====
+      function renderEdgeNodes() {
+        const nodes = [
+          {
+            id: "NODE_001",
+            cam: "CAM_001 · Ahmedabad",
+            status: "online",
+            load: "12%",
+          },
+          {
+            id: "NODE_002",
+            cam: "CAM_011 · Surat",
+            status: "online",
+            load: "15%",
+          },
+          {
+            id: "NODE_003",
+            cam: "CAM_018 · Vadodara",
+            status: "active",
+            load: "67%",
+          },
+          {
+            id: "NODE_004",
+            cam: "CAM_023 · Rajkot",
+            status: "online",
+            load: "18%",
+          },
+          {
+            id: "NODE_005",
+            cam: "CAM_029 · Bharuch",
+            status: "active",
+            load: "82%",
+          },
+          {
+            id: "NODE_006",
+            cam: "CAM_036 · Gandhinagar",
+            status: "online",
+            load: "11%",
+          },
+          {
+            id: "NODE_007",
+            cam: "CAM_030 · Bhuj",
+            status: "online",
+            load: "8%",
+          },
+          {
+            id: "NODE_008",
+            cam: "CAM_032 · Bhavnagar",
+            status: "online",
+            load: "22%",
+          },
+          {
+            id: "NODE_009",
+            cam: "CAM_042 · Somnath",
+            status: "online",
+            load: "6%",
+          },
+          {
+            id: "NODE_010",
+            cam: "CAM_045 · Morbi",
+            status: "online",
+            load: "14%",
+          },
+          {
+            id: "NODE_011",
+            cam: "CAM_047 · Anand",
+            status: "online",
+            load: "19%",
+          },
+          {
+            id: "NODE_012",
+            cam: "CAM_050 · Patan",
+            status: "online",
+            load: "9%",
+          },
+        ];
+        $("edgeNodesFeed").innerHTML = nodes
+          .map(
+            (n) => `<div class="edge-node">
+    <div class="edge-node__status edge-node__status--${n.status}"></div>
+    <div><div class="edge-node__id">${n.id}</div><div class="edge-node__cam">${n.cam}</div></div>
+    <div class="edge-node__load" ${n.status === "alert" ? 'style="color:var(--red)"' : ""}>${n.status === "alert" ? "ALERT" : n.load}</div>
+  </div>`,
+          )
+          .join("");
+      }
+
+      // ===== KPIs =====
+      function updateKPIs() {
+        $("kpiPlates").textContent = fmtNum(State.platesRead);
+        const trails = State.trails.size;
+        $("kpiTrails").textContent = trails;
+        $("mapTracking").textContent = trails;
+        $("mapDetected").textContent = fmtNum(State.detectedToday);
+        const now = Date.now();
+        State.detectionTimestamps = State.detectionTimestamps.filter(
+          (t) => now - t < 60000,
+        );
+        $("kpiDetections").textContent = State.detectionTimestamps.length;
+      }
+
+      // ===== SPARKLINE =====
+      function updateSparkline() {
+        const points = [];
+        for (let i = 0; i < 20; i++) {
+          points.push(`${i * 5},${20 - Math.random() * 15 - 2}`);
+        }
+        const svg = `<svg viewBox="0 0 100 20" preserveAspectRatio="none">
+    <polyline points="${points.join(" ")}" fill="none" stroke="var(--green)" stroke-width="1" opacity="0.6"/>
+  </svg>`;
+        $("sparkDetections").innerHTML = svg;
+      }
+
+      // ===== CLOCK =====
+      function updateClock() {
+        const now = new Date();
+        $("clock").innerHTML = `${fmtTime(now)} <span>IST</span>`;
+      }
+
+      // ===== TABS =====
+      function switchTab(tab) {
+        State.activeTab = tab;
+        document
+          .querySelectorAll(".tab")
+          .forEach((t) =>
+            t.classList.toggle("tab--active", t.dataset.tab === tab),
+          );
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((c) =>
+            c.classList.toggle("tab-content--active", c.dataset.tab === tab),
+          );
+      }
+
+      // ===== TOAST =====
+      function showToast(title, desc, type = "info") {
+        const container = $("toastContainer");
+        const toast = document.createElement("div");
+        toast.className = `toast toast--${type}`;
+        toast.innerHTML = `<div class="toast__title">${title}</div><div class="toast__desc">${desc}</div>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          toast.style.transform = "translateX(8px)";
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      }
+
+      // ===== SIMULATOR =====
+      function generateDetection() {
+        const cam = rand(CAMERAS);
+        const { type, color } = pickVehicle();
+        let plate = genPlate();
+        // Sometimes use watchlisted plate
+        if (Math.random() < 0.05)
+          plate = rand(Array.from(State.watchlist.keys()));
+
+        const det = {
+          id: `DET_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          camera_id: cam.id,
+          camera: cam,
+          plate,
+          vehicle_type: type,
+          vehicle_color: color,
+          direction: rand(["north", "south", "east", "west"]),
+          confidence: 0.85 + Math.random() * 0.14,
+          timestamp: new Date(),
+          lat: cam.lat,
+          lon: cam.lon,
+        };
+
+        State.detections.push(det);
+        if (State.detections.length > 100) State.detections.shift();
+        State.platesRead++;
+        State.detectedToday++;
+        State.detectionTimestamps.push(Date.now());
+
+        // Update trail
+        if (!State.trails.has(plate)) State.trails.set(plate, []);
+        State.trails.get(plate).push(det);
+        if (State.trails.get(plate).length > 20)
+          State.trails.get(plate).shift();
+
+        // Random camera activation
+        if (Math.random() < 0.3 && cam.status === "green")
+          updateCameraMarker(cam.id, "yellow");
+
+        // Watchlist match
+        if (State.watchlist.has(plate)) {
+          const wl = State.watchlist.get(plate);
+          const alert = {
+            id: `ALT_${Date.now()}`,
+            type: "watchlist",
+            desc: `Vehicle <strong>${plate}</strong> matched watchlist — ${wl.reason.split("—")[0].trim()}`,
+            cam,
+            time: new Date(),
+            plate,
+          };
+          State.alerts.push(alert);
+          updateCameraMarker(cam.id, "red");
+          showToast(
+            "Watchlist Alert",
+            `${plate} detected at ${cam.loc}`,
+            "error",
+          );
+          renderAlertsFeed();
+        }
+
+        // Update UI
+        if (State.activeTab === "detections") renderDetectionsFeed();
+        if (State.activeTab === "trail" && State.selectedPlate === plate)
+          renderTrailPanel(plate);
+        updateKPIs();
+      }
+
+      function startSimulator() {
+        if (State.simInterval) clearTimeout(State.simInterval);
+        State.simRunning = true;
+        $("playLabel").textContent = "Pause Feed";
+        $("playIcon").innerHTML =
+          '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+        const tick = () => {
+          if (!State.simRunning) return;
+          generateDetection();
+          const next = 1500 + Math.random() * 3000;
+          State.simInterval = setTimeout(tick, next);
+        };
+        tick();
+      }
+
+      function stopSimulator() {
+        State.simRunning = false;
+        if (State.simInterval) {
+          clearTimeout(State.simInterval);
+          State.simInterval = null;
+        }
+        $("playLabel").textContent = "Resume Feed";
+        $("playIcon").innerHTML = '<polygon points="6 3 20 12 6 21 6 3"/>';
+      }
+
+      function toggleSimulator() {
+        State.simRunning ? stopSimulator() : startSimulator();
+      }
+
+      // ===== DEMO SCENARIO =====
+      function runDemoScenario() {
+        if (State.demoRunning) return;
+        State.demoRunning = true;
+        stopSimulator();
+        showToast(
+          "Demo Scenario Starting",
+          "Tracking stolen vehicle GJ01AB1234 across Gujarat…",
+          "info",
+        );
+
+        const demoPlate = "GJ01AB1234";
+        State.trails.set(demoPlate, []);
+
+        const route = [
+          { camId: "cam11", delay: 1000 },
+          { camId: "cam29", delay: 4000 },
+          { camId: "cam18", delay: 7500 },
+          { camId: "cam21", delay: 11000 },
+          { camId: "cam08", delay: 14500 },
+          { camId: "cam03", delay: 18000 },
+        ];
+
+        setTimeout(
+          () =>
+            map.flyTo(
+              [CAMERA_BY_ID["cam11"].lat, CAMERA_BY_ID["cam11"].lon],
+              10,
+              { duration: 1.5 },
+            ),
+          500,
+        );
+
+        route.forEach((stop, i) => {
+          setTimeout(() => {
+            const cam = CAMERA_BY_ID[stop.camId];
+            const now = new Date();
+            const det = {
+              id: `DEMO_${i}`,
+              camera_id: cam.id,
+              camera: cam,
+              plate: demoPlate,
+              vehicle_type: "Sedan",
+              vehicle_color: "White",
+              direction: "north",
+              confidence: 0.94 + Math.random() * 0.05,
+              timestamp: now,
+              lat: cam.lat,
+              lon: cam.lon,
+            };
+
+            State.detections.push(det);
+            State.platesRead++;
+            State.detectedToday++;
+            State.detectionTimestamps.push(Date.now());
+            State.trails.get(demoPlate).push(det);
+
+            updateCameraMarker(cam.id, "yellow");
+            State.selectedPlate = demoPlate;
+            switchTab("trail");
+            renderTrailPanel(demoPlate);
+            renderDetectionsFeed();
+            updateKPIs();
+            map.flyTo([cam.lat, cam.lon], 11, { duration: 1.2 });
+
+            if (i === route.length - 1) {
+              updateCameraMarker(cam.id, "red");
+              const alert = {
+                id: `ALT_DEMO_${Date.now()}`,
+                type: "watchlist",
+                desc: `Vehicle <strong>${demoPlate}</strong> matched watchlist — stolen vehicle`,
+                cam,
+                time: now,
+                plate: demoPlate,
+              };
+              State.alerts.push(alert);
+              showToast(
+                "WATCHLIST ALERT",
+                `${demoPlate} detected at ${cam.loc}, ${cam.dist}`,
+                "error",
+              );
+              renderAlertsFeed();
+              renderTrailPanel(demoPlate);
+              State.demoRunning = false;
+              setTimeout(() => startSimulator(), 3000);
+            }
+          }, stop.delay);
+        });
+      }
+
+      // ===== SEARCH =====
+      function performSearch(q) {
+        q = q.trim().toUpperCase();
+        if (q.includes("GJ")) {
+          const trail = State.trails.get(q);
+          if (trail && trail.length > 0) {
+            State.selectedPlate = q;
+            switchTab("trail");
+            renderTrailPanel(q);
+            const coords = trail.map((t) => [t.camera.lat, t.camera.lon]);
+            map.fitBounds(L.latLngBounds(coords), { padding: [60, 60] });
+            showToast(
+              "Vehicle Found",
+              `${q} — ${trail.length} detections across ${new Set(trail.map((t) => t.camera.dist)).size} districts`,
+              "success",
+            );
+            return;
+          }
+        }
+        // Search by location
+        const matches = CAMERAS.filter(
+          (c) =>
+            c.dist.toUpperCase().includes(q) || c.loc.toUpperCase().includes(q),
+        );
+        if (matches.length > 0) {
+          const bounds = L.latLngBounds(matches.map((c) => [c.lat, c.lon]));
+          map.fitBounds(bounds, { padding: [60, 60] });
+          showToast(
+            "Location Found",
+            `${matches.length} cameras in ${q}`,
+            "info",
+          );
+        }
+      }
+
+      // ===== COMMAND PALETTE =====
+      let cmdItems = [];
+      let cmdSelectedIndex = 0;
+
+      function openCommandPalette() {
+        $("cmdOverlay").classList.add("cmd-overlay--open");
+        $("cmdInput").value = "";
+        $("cmdInput").focus();
+        renderCommandResults("");
+      }
+
+      function closeCommandPalette() {
+        $("cmdOverlay").classList.remove("cmd-overlay--open");
+      }
+
+      function renderCommandResults(query) {
+        const q = query.trim().toUpperCase();
+        const results = $("cmdResults");
+        let html = "";
+        cmdItems = [];
+
+        const commands = [
+          {
+            title: "Run Demo Scenario",
+            sub: "Track stolen vehicle across Gujarat",
+            icon: "play",
+            action: () => {
+              runDemoScenario();
+              closeCommandPalette();
+            },
+          },
+          {
+            title: "Pause / Resume Live Feed",
+            sub: "Toggle real-time detection stream",
+            icon: "pause",
+            action: () => {
+              toggleSimulator();
+              closeCommandPalette();
+            },
+          },
+          {
+            title: "Fit Map to Gujarat",
+            sub: "Reset map view",
+            icon: "map",
+            action: () => {
+              map.flyTo([22.25, 71.78], 7, { duration: 0.8 });
+              closeCommandPalette();
+            },
+          },
+          {
+            title: "Show All Alerts",
+            sub: "Switch to alerts panel",
+            icon: "alert",
+            action: () => {
+              switchTab("alerts");
+              renderAlertsFeed();
+              closeCommandPalette();
+            },
+          },
+          {
+            title: "Show Watchlist",
+            sub: "View flagged vehicles",
+            icon: "list",
+            action: () => {
+              closeCommandPalette();
+            },
+          },
+          {
+            title: "Show Camera Network",
+            sub: "View all 50 cameras",
+            icon: "camera",
+            action: () => {
+              switchTab("cameras");
+              renderCameraGrid();
+              closeCommandPalette();
+            },
+          },
+        ];
+
+        const iconMap = {
+          play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+          pause:
+            '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>',
+          map: '<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 10 1 6"/><line x1="8" y1="10" x2="8" y2="18"/>',
+          alert:
+            '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/>',
+          list: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>',
+          camera:
+            '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+        };
+
+        // Filter commands
+        let groupHtml = '<div class="cmd-group__label">Commands</div>';
+        commands.forEach((cmd) => {
+          if (
+            !q ||
+            cmd.title.toUpperCase().includes(q) ||
+            cmd.sub.toUpperCase().includes(q)
+          ) {
+            const idx = cmdItems.length;
+            cmdItems.push(cmd);
+            groupHtml += `<div class="cmd-item ${idx === cmdSelectedIndex ? "cmd-item--active" : ""}" data-idx="${idx}" onclick="cmdItems[${idx}].action()">
+        <div class="cmd-item__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${iconMap[cmd.icon]}</svg></div>
+        <div class="cmd-item__body"><div class="cmd-item__title">${cmd.title}</div><div class="cmd-item__sub">${cmd.sub}</div></div>
+        <div class="cmd-item__enter">↵</div>
+      </div>`;
+          }
+        });
+
+        // Search plates
+        if (q) {
+          const plateMatches = Array.from(State.trails.keys()).filter((p) =>
+            p.toUpperCase().includes(q),
+          );
+          if (plateMatches.length > 0) {
+            groupHtml += '<div class="cmd-group__label">Vehicles</div>';
+            plateMatches.forEach((plate) => {
+              const trail = State.trails.get(plate);
+              const idx = cmdItems.length;
+              const action = () => {
+                State.selectedPlate = plate;
+                switchTab("trail");
+                renderTrailPanel(plate);
+                const coords = trail.map((t) => [t.camera.lat, t.camera.lon]);
+                map.fitBounds(L.latLngBounds(coords), { padding: [60, 60] });
+                closeCommandPalette();
+              };
+              cmdItems.push({
+                title: plate,
+                sub: `${trail.length} detections`,
+                action,
+              });
+              groupHtml += `<div class="cmd-item ${idx === cmdSelectedIndex ? "cmd-item--active" : ""}" data-idx="${idx}" onclick="cmdItems[${idx}].action()">
+          <div class="cmd-item__icon" style="background:var(--red-dim)"><svg viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2"><path d="M5 17H3v-6l2-5h12l2 5v6h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg></div>
+          <div class="cmd-item__body"><div class="cmd-item__title">${plate}</div><div class="cmd-item__sub">${trail.length} detections</div></div>
+        </div>`;
+            });
+          }
+
+          // Search cameras
+          const camMatches = CAMERAS.filter(
+            (c) =>
+              c.id.toUpperCase().includes(q) ||
+              c.loc.toUpperCase().includes(q) ||
+              c.dist.toUpperCase().includes(q),
+          ).slice(0, 5);
+          if (camMatches.length > 0) {
+            groupHtml += '<div class="cmd-group__label">Cameras</div>';
+            camMatches.forEach((cam) => {
+              const idx = cmdItems.length;
+              const action = () => {
+                focusCamera(cam.id);
+                switchTab("cameras");
+                renderCameraGrid();
+                closeCommandPalette();
+              };
+              cmdItems.push({
+                title: cam.id,
+                sub: `${cam.loc}, ${cam.dist}`,
+                action,
+              });
+              groupHtml += `<div class="cmd-item ${idx === cmdSelectedIndex ? "cmd-item--active" : ""}" data-idx="${idx}" onclick="cmdItems[${idx}].action()">
+          <div class="cmd-item__icon"><svg viewBox="0 0 24 24" fill="none" stroke="#14509e" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2"/></svg></div>
+          <div class="cmd-item__body"><div class="cmd-item__title">${cam.id}</div><div class="cmd-item__sub">${cam.loc}, ${cam.dist}</div></div>
+        </div>`;
+            });
+          }
+        }
+
+        results.innerHTML = groupHtml;
+      }
+
+      // ===== INIT =====
+
+      // ===== WEBSOCKET: Connect to real backend =====
+      let ws = null;
+      let wsConnected = false;
+      let wsReconnectTimer = null;
+
+      function connectWebSocket() {
+        const wsUrl =
+          window.location.protocol === "https:"
+            ? "wss://" + window.location.hostname + ":8000/ws"
+            : "ws://" + (window.location.hostname || "localhost") + ":8000/ws";
+
+        console.log("[EIN] Connecting to backend:", wsUrl);
+
+        try {
+          ws = new WebSocket(wsUrl);
+
+          ws.onopen = () => {
+            wsConnected = true;
+            console.log("[EIN] ✓ Backend connected — LIVE MODE");
+            $("statusText").textContent = "30 cameras · LIVE MODE";
+            if (State.simRunning) stopSimulator();
+          };
+
+          ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.channel === "detection") handleLiveDetection(msg.data);
+            else if (msg.channel === "alert") handleLiveAlert(msg.data);
+          };
+
+          ws.onclose = () => {
+            wsConnected = false;
+            console.log("[EIN] Backend disconnected — SIM MODE");
+            $("statusText").textContent = "30 cameras · SIM MODE";
+            if (!State.simRunning && !State.demoRunning) startSimulator();
+            wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+          };
+
+          ws.onerror = () => {};
+        } catch (e) {
+          console.log("[EIN] Backend not available, using simulator");
+        }
+      }
+
+      function handleLiveDetection(data) {
+        const cam = CAMERA_BY_ID[data.camera_id];
+        if (!cam) return;
+
+        const det = {
+          id: `LIVE_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          camera_id: data.camera_id,
+          camera: cam,
+          plate: data.plate || null,
+          vehicle_type: data.vehicle_type || "vehicle",
+          vehicle_color: data.vehicle_color || "unknown",
+          direction: "unknown",
+          confidence: data.confidence || 0.9,
+          timestamp: new Date(data.timestamp || Date.now()),
+          lat: cam.lat,
+          lon: cam.lon,
+        };
+
+        State.detections.push(det);
+        if (State.detections.length > 100) State.detections.shift();
+        if (det.plate) {
+          State.platesRead++;
+          if (!State.trails.has(det.plate)) State.trails.set(det.plate, []);
+          State.trails.get(det.plate).push(det);
+          if (State.trails.get(det.plate).length > 20)
+            State.trails.get(det.plate).shift();
+        }
+        State.detectedToday++;
+        State.detectionTimestamps.push(Date.now());
+        updateCameraMarker(cam.id, "yellow");
+        showDetectionRipple(cam.lat, cam.lon);
+        if (State.activeTab === "detections") renderDetectionsFeed();
+        if (State.activeTab === "trail" && State.selectedPlate === det.plate)
+          renderTrailPanel(det.plate);
+        updateKPIs();
+      }
+
+      function handleLiveAlert(data) {
+        const cam = CAMERA_BY_ID[data.camera_id];
+        const alert = {
+          id: `LIVE_ALT_${Date.now()}`,
+          type: "watchlist",
+          desc: `Vehicle <strong>${data.plate}</strong> matched watchlist — ${data.description || "flagged vehicle"}`,
+          cam: cam,
+          time: new Date(data.timestamp || Date.now()),
+          plate: data.plate,
+        };
+        State.alerts.push(alert);
+        if (cam) updateCameraMarker(cam.id, "red");
+        showToast(
+          "WATCHLIST ALERT",
+          `${data.plate} at ${cam ? cam.loc : data.camera_id}`,
+          "error",
+        );
+        renderAlertsFeed();
+        if (State.activeTab !== "alerts") switchTab("alerts");
+      }
+
+      function init() {
+        initMap();
+        renderAlertsFeed();
+        renderDetectionsFeed();
+        renderTrailPanel("GJ01AB1234");
+        renderCameraGrid();
+        renderWatchlistFeed();
+        renderEdgeNodes();
+        updateKPIs();
+        updateSparkline();
+        updateClock();
+
+        setInterval(updateClock, 1000);
+        setInterval(updateSparkline, 10000);
+        startSimulator();
+
+        // Try connecting to real backend
+        connectWebSocket();
+
+        // Search
+        $("searchInput").addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            performSearch(e.target.value);
+          }
+        });
+
+        // Command palette
+        $("cmdInput").addEventListener("input", (e) => {
+          cmdSelectedIndex = 0;
+          renderCommandResults(e.target.value);
+        });
+        $("cmdInput").addEventListener("keydown", (e) => {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            cmdSelectedIndex = Math.min(
+              cmdSelectedIndex + 1,
+              cmdItems.length - 1,
+            );
+            renderCommandResults($("cmdInput").value);
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            cmdSelectedIndex = Math.max(cmdSelectedIndex - 1, 0);
+            renderCommandResults($("cmdInput").value);
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (cmdItems[cmdSelectedIndex]) cmdItems[cmdSelectedIndex].action();
+          } else if (e.key === "Escape") {
+            closeCommandPalette();
+          }
+        });
+
+        // Global keyboard
+        document.addEventListener("keydown", (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+            e.preventDefault();
+            openCommandPalette();
+          }
+          if (e.key === "Escape") closeCommandPalette();
+        });
+      }
+
+      document.addEventListener("DOMContentLoaded", init);
+    </script>
+  </body>
+</html>

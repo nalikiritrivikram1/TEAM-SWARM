@@ -1,0 +1,37 @@
+version: "3.8"
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports: ["1883:1883", "9001:9001"]
+    volumes: ["./mosquitto.conf:/mosquitto/config/mosquitto.conf"]
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    restart: unless-stopped
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment: {POSTGRES_DB: ein, POSTGRES_USER: ein, POSTGRES_PASSWORD: ein_dev_2026}
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    restart: unless-stopped
+  backend:
+    build: ./backend
+    ports: ["8000:8000"]
+    depends_on: [mosquitto, redis, postgres]
+    environment: {MQTT_HOST: mosquitto, MQTT_PORT: 1883, REDIS_HOST: redis, REDIS_PORT: 6379,
+      DATABASE_URL: "postgresql://ein:ein_dev_2026@postgres:5432/ein"}
+    restart: unless-stopped
+  edge:
+    build: .
+    depends_on: [mosquitto]
+    environment: {CAMERA_ID: cam04, CAMERA_LABEL: "Paldi Circle", USE_HLS: "true",
+      HLS_URL: "https://cctv.corp8.cloud/cam04/index.m3u8", MQTT_HOST: mosquitto, MQTT_PORT: 1883}
+    restart: unless-stopped
+  dashboard:
+    image: nginx:alpine
+    ports: ["8080:80"]
+    volumes: ["./dashboard:/usr/share/nginx/html"]
+    restart: unless-stopped
+volumes:
+  pgdata:
