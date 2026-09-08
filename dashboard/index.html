@@ -584,47 +584,34 @@
         overflow: hidden;
         position: relative;
       }
-      .map-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 8px 16px;
-        background: var(--surface);
-        border-bottom: 1px solid var(--border);
-        z-index: 10;
-      }
-      .map-header__left {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-      }
-      .map-header__title {
-        font-family: var(--font-mono);
-        font-size: 10px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        color: var(--text-dim);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .map-header__title .dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--accent);
-        box-shadow: 0 0 8px var(--accent-glow);
-        animation: pulse 2s ease-in-out infinite;
-      }
-      .map-header__legend {
-        display: flex;
-        gap: 14px;
-      }
-      .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 5px;
+        map = L.map("map", {
+          center: [22.25, 71.78],
+          zoom: 7,
+          zoomControl: false,
+          zoomSnap: 0.5,
+        });
+        const satelliteMap = L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          { attribution: "&copy; Esri World Imagery", maxZoom: 19 },
+        ).addTo(map);
+        const darkMap = L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+          { attribution: "", maxZoom: 16, opacity: 0.3 },
+        ).addTo(map);
+        const labelsMap = L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+          { attribution: "", maxZoom: 19, opacity: 0.6 },
+        ).addTo(map);
+        const roadsMap = L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
+          { attribution: "", maxZoom: 19, opacity: 0.5 },
+        ).addTo(map);
+        L.control.zoom({ position: "bottomright" }).addTo(map);
+        L.control.layers(
+          { Satellite: satelliteMap },
+          { "Dark Overlay": darkMap, Labels: labelsMap, Roads: roadsMap },
+          { position: "topright", collapsed: false },
+        ).addTo(map);
         font-family: var(--font-mono);
         font-size: 9px;
         color: var(--text-dim);
@@ -702,23 +689,30 @@
 
       /* MAP MARKERS */
       .cam-marker {
-        width: 12px;
-        height: 12px;
+        width: 18px;
+        height: 18px;
         border-radius: 50%;
         border: 2px solid #ffffff;
+        animation: cameraPulse 3s ease-in-out infinite;
       }
       .cam-marker--green {
         background: var(--green);
-        box-shadow: 0 0 6px var(--green-glow);
+        box-shadow:
+          0 0 10px #00ff88,
+          0 0 20px #00ff88;
       }
       .cam-marker--amber {
-        background: var(--amber);
-        box-shadow: 0 0 6px var(--amber-glow);
+        background: #ff8844;
+        box-shadow:
+          0 0 12px #ff8844,
+          0 0 24px #ff8844;
       }
       .cam-marker--red {
-        background: var(--red);
-        box-shadow: 0 0 8px var(--red-glow);
-        animation: pulse 1s ease-in-out infinite;
+        background: #ff4444;
+        box-shadow:
+          0 0 15px #ff4444,
+          0 0 30px #ff4444;
+        animation: cameraPulse 1s ease-in-out infinite;
       }
       .cam-marker--red::after {
         content: "";
@@ -754,6 +748,33 @@
         border-radius: 50%;
         border: 2px solid var(--accent);
         animation: pulseRing 2s ease-out infinite;
+      }
+      @keyframes cameraPulse {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.35);
+          opacity: 0.72;
+        }
+      }
+      @keyframes rippleExpand {
+        from {
+          transform: scale(0.5);
+          opacity: 0.9;
+        }
+        to {
+          transform: scale(3);
+          opacity: 0;
+        }
+      }
+      .detection-ripple {
+        border-radius: 50%;
+        border: 2px solid #00ff88;
+        background: rgba(0, 255, 136, 0.18);
+        animation: rippleExpand 1.5s ease-out forwards;
       }
 
       /* SIDEBAR RIGHT */
@@ -2128,14 +2149,42 @@
           zoomControl: true,
           zoomSnap: 0.5,
         });
-        L.tileLayer(
+        const roadMap = L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+          {
+            attribution:
+              "&copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors",
+            maxZoom: 19,
+          },
+        ).addTo(map);
+        const satelliteMap = L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          { attribution: "&copy; Esri", maxZoom: 19 },
+        );
+        const darkMap = L.tileLayer(
           "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
           { attribution: "&copy; Esri", maxZoom: 16 },
-        ).addTo(map);
-        L.tileLayer(
+        );
+        const darkLabels = L.tileLayer(
           "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
           { attribution: "&copy; Esri", maxZoom: 16, pane: "overlayPane" },
-        ).addTo(map);
+        );
+        darkMap.addTo(map);
+        darkLabels.addTo(map);
+        L.control
+          .layers(
+            {
+              "Road map": roadMap,
+              Satellite: satelliteMap,
+              "Operations dark": L.layerGroup([darkMap, darkLabels]),
+            },
+            null,
+            { position: "topright", collapsed: false },
+          )
+          .addTo(map);
+        streetMap.addTo(map);
+        map.removeLayer(darkMap);
+        map.removeLayer(darkLabels);
 
         markerCluster = L.markerClusterGroup({
           maxClusterRadius: 40,
@@ -2151,13 +2200,16 @@
           },
         });
 
-        CAMERAS.forEach((cam) => {
-          const icon = L.divIcon({
+        const cameraIcon = (status) =>
+          L.divIcon({
             className: "",
-            html: `<div class="cam-marker cam-marker--${cam.status}"></div>`,
-            iconSize: [12, 12],
-            iconAnchor: [6, 6],
+            html: `<div class="cam-marker cam-marker--${status}"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
           });
+
+        CAMERAS.forEach((cam) => {
+          const icon = cameraIcon(cam.status);
           const marker = L.marker([cam.lat, cam.lon], { icon }).addTo(
             markerCluster,
           );
@@ -2192,8 +2244,8 @@
         const icon = L.divIcon({
           className: "",
           html: `<div class="cam-marker cam-marker--${status}"></div>`,
-          iconSize: [12, 12],
-          iconAnchor: [6, 6],
+          iconSize: [20, 20],
+          iconAnchor: [10, 10],
         });
         entry.marker.setIcon(icon);
         const statusText =
