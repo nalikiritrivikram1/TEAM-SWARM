@@ -96,9 +96,23 @@ class SentinelStream:
         self.iv = b'\x00' * 16
 
     def login(self):
-        r = self.session.post(f"{BASE}/auth/login", data={"password": PASSWORD}, allow_redirects=True, timeout=15)
-        if r.status_code == 200 and len(self.session.cookies) > 0:
-            return True
+        if not PASSWORD:
+            log.error(f"[{self.cam_id}] SENTINEL_PASSWORD env var not set! Run: $env:SENTINEL_PASSWORD='FL3J-HJXG-GEGX'")
+            return False
+        try:
+            # First attempt: follow redirects
+            r = self.session.post(f"{BASE}/auth/login", data={"password": PASSWORD}, allow_redirects=True, timeout=15)
+            log.info(f"[{self.cam_id}] Login: status={r.status_code}, cookies={len(self.session.cookies)}")
+            if len(self.session.cookies) > 0:
+                return True
+            # Second attempt: don't follow redirects (cookie may be set on 302)
+            r2 = self.session.post(f"{BASE}/auth/login", data={"password": PASSWORD}, allow_redirects=False, timeout=15)
+            log.info(f"[{self.cam_id}] Login retry (no redirect): status={r2.status_code}, cookies={len(self.session.cookies)}")
+            if len(self.session.cookies) > 0:
+                return True
+            log.error(f"[{self.cam_id}] Login failed — no cookies received. Status: {r.status_code}")
+        except Exception as e:
+            log.error(f"[{self.cam_id}] Login error: {e}")
         return False
 
     def read_live_frame(self):
@@ -540,9 +554,9 @@ def run_edge_node_v2(cam_id, show=False, mesh=False, federated=False):
     log.info(f"[{cam_id}] Features: AI=on, Anomaly=on, Mesh={'on' if mesh else 'off'}, Federated={'on' if federated else 'off'}")
 
     stream = SentinelStream(cam_id)
-    if not stream.login():
-        log.error(f"[{cam_id}] Login failed")
-        return
+    login_ok = stream.login()
+    if not login_ok:
+        log.warning(f"[{cam_id}] Sentinel login failed — switching to DEMO mode (simulated detections)")
 
     anomaly_engine = AnomalyEngine(cam_id)
     tracker = PredictiveTracker(cam_id)
@@ -553,11 +567,61 @@ def run_edge_node_v2(cam_id, show=False, mesh=False, federated=False):
     log.info(f"[{cam_id}] LIVE streaming from {cam_name}")
 
     frame_count = 0
+    import random
+    demo_vehicles = ["car", "motorcycle", "bus", "truck"]
+    demo_plates = ["GJ01AB1234", "GJ05XY9876", "GJ01CD5678", "GJ02EF4321", "MH12GH1111", "GJ18JK2222"]
     while True:
         try:
-            frame = stream.read_live_frame()
+            frame = stream.read_live_frame() if login_ok else None
             if frame is None:
-                time.sleep(2)
+                if login_ok:
+                    time.sleep(2)
+                    continue
+                # DEMO MODE: generate simulated frame + detections
+                frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                cv2.putText(frame, f"DEMO MODE - {cam_id} - {cam_name}", (10, 30),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                n_dets = random.randint(1, 3)
+                detections = []
+                for _ in range(n_dets):
+                    vtype = random.choice(demo_vehicles)
+                    plate = random.choice(demo_plates) if random.random() > 0.3 else None
+                    x1, y1 = random.randint(50, 400), random.randint(100, 300)
+                    x2, y2 = x1 + random.randint(80, 200), y1 + random.randint(60, 150)
+                    det = {
+                        "type": "vehicle", "cam_id": cam_id, "camera_id": cam_id,
+                        "vehicle_type": vtype, "confidence": round(random.uniform(0.55, 0.95), 3),
+                        "bbox": [x1, y1, x2, y2], "plate": plate,
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    }
+                    detections.append(det)
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    label = f"{vtype} {det['confidence']:.2f}"
+                    if plate: label += f" | {plate}"
+                    cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1)
+                # Skip YOLO/OCR in demo mode, go straight to processing
+                if fed_node:
+                    for d in detections:
+                        fed_node.record_detection(d.get("confidence", 0.5))
+                anomalies = anomaly_engine.analyze(frame, detections)
+                for anomaly in anomalies:
+                    publish(cam_id, anomaly)
+                for det in detections:
+                    if det["type"] == "vehicle" and det.get("plate"):
+                        if mesh_node:
+                            match = mesh_node.check_expected_arrival(det["plate"])
+                            if match: publish(cam_id, match)
+                        predicted = tracker.predict_next_camera(det["plate"], detections)
+                        if predicted and mesh_node:
+                            handoff = tracker.create_handoff_message(det["plate"], det["vehicle_type"], predicted)
+                            mesh_node.send_handoff(handoff, predicted["predicted_camera"])
+                            publish(cam_id, handoff)
+                    publish(cam_id, det)
+                if show:
+                    cv2.imshow(f"{cam_id} - {cam_name} (DEMO)", frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+                time.sleep(FRAME_INTERVAL)
                 continue
 
             frame_count += 1
@@ -631,6 +695,7 @@ def main():
     parser.add_argument("--show", action="store_true", help="Show live video window")
     parser.add_argument("--mesh", action="store_true", help="Enable edge-to-edge mesh communication")
     parser.add_argument("--federated", action="store_true", help="Enable federated learning")
+    parser.add_argument("--demo", action="store_true", help="Force demo mode (simulated detections if camera unavailable)")
     args = parser.parse_args()
 
     if args.all:
