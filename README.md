@@ -41,5 +41,9 @@ https://github.com/nalikiritrivikram1/TEAM-SWARM
 ## Team
 
 - Team: The Swarm
-- Member: Imran Khan
+- Member: 1.Imran Khan
+          2.Ummadi Usha Sree
+          3.Nasina Hima Harshitha
+          4.Chevula Rupavathi
+          5.Nalikiri Siva Venkata Trivikram
 - Hackathon: Gujarat Police Innovation Challenge 2026
