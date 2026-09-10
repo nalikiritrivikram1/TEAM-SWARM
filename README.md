@@ -41,8 +41,8 @@ https://github.com/nalikiritrivikram1/TEAM-SWARM
 ## Team
 
 - Team: The Swarm
-- Member: 1.Imran Khan
-          2.Ummadi Usha Sree
+- Member: 1.Ummadi Usha Sree
+          2.Pathan Imran Khan
           3.Nasina Hima Harshitha
           4.Chevula Rupavathi
           5.Nalikiri Siva Venkata Trivikram
